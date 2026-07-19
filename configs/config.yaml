@@ -1,0 +1,28 @@
+project:
+  name:
+  version:
+
+dataset:
+  raw_path:
+  processed_path:
+  train_path:
+  validation_path:
+  test_path:
+
+image:
+  width:
+  height:
+  channels:
+
+training:
+  batch_size:
+  epochs:
+  learning_rate:
+  seed:
+
+model:
+  name:
+
+artifacts:
+  reports:
+  checkpoints:

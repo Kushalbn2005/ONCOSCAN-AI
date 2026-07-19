@@ -1,0 +1,20 @@
+{
+    "structure": {
+        "Training/glioma": false,
+        "Training/meningioma": false,
+        "Training/pituitary": false,
+        "Training/notumor": false,
+        "Testing/glioma": false,
+        "Testing/meningioma": false,
+        "Testing/pituitary": false,
+        "Testing/notumor": false
+    },
+    "image_count": {
+        "Training": {},
+        "Testing": {}
+    },
+    "invalid_extensions": [],
+    "corrupted_images": [],
+    "image_sizes": {},
+    "channels": {}
+}
