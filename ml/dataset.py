@@ -44,7 +44,7 @@ class DatasetLoader:
                 layers.RandomFlip("horizontal"),
                 layers.RandomRotation(0.05),
                 layers.RandomZoom(0.10),
-                # layers.RandomContrast(0.10),
+                layers.RandomContrast(0.10),
             ],
             name="data_augmentation"
         )
@@ -52,9 +52,8 @@ class DatasetLoader:
     ##########################################################
 
     def normalize(self, image, label):
-
-        image = tf.cast(image, tf.float32) / 255.0
-
+        # EfficientNetB0 includes Rescaling(1/255); keep pixels in [0, 255].
+        image = tf.cast(image, tf.float32)
         return image, label
 
     ##########################################################
@@ -138,20 +137,17 @@ class DatasetLoader:
             num_parallel_calls=tf.data.AUTOTUNE
         )
 
-        if training:
+        # Cache before augment so each epoch still gets fresh transforms.
+        dataset = dataset.cache()
 
+        if training:
+            dataset = dataset.shuffle(1000)
             dataset = dataset.map(
                 self.augment,
                 num_parallel_calls=tf.data.AUTOTUNE
             )
 
-            dataset = dataset.shuffle(1000)
-        
-        dataset = dataset.cache()
-
-        dataset = dataset.prefetch(
-            tf.data.AUTOTUNE
-        )
+        dataset = dataset.prefetch(tf.data.AUTOTUNE)
 
         return dataset
 

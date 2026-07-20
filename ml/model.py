@@ -10,7 +10,7 @@ class BrainTumorClassifier:
         self,
         input_shape=(224, 224, 3),
         num_classes=4,
-        learning_rate=1e-4,
+        learning_rate=1e-3,
         fine_tune=False
     ):
 
@@ -47,7 +47,7 @@ class BrainTumorClassifier:
         x = layers.Dense(
             256,
             activation="relu",
-            kernel_regularizer=regularizers.l2(1e-5)
+            kernel_regularizer=regularizers.l2(1e-4)
         )(x)
 
         x = layers.Dropout(0.20)(x)
