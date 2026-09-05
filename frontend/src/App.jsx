@@ -6,7 +6,7 @@ import DiagnosisPanel from './components/DiagnosisPanel';
 import ModelInfoModal from './components/ModelInfoModal';
 import { AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = 'http://localhost:8000';
+const API_BASE_URL = 'https://oncoscan-ai-tvcg.onrender.com';
 
 export default function App() {
   const [rawImageSrc, setRawImageSrc] = useState(null);
@@ -82,7 +82,7 @@ export default function App() {
 
   return (
     <div style={{ maxWidth: '1400px', margin: '0 auto', padding: '24px 16px' }}>
-      
+
       {/* Header */}
       <Header
         isConnected={isConnected}
