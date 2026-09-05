@@ -11,3 +11,10 @@ seaborn
 tqdm
 PyYAML
 tensorboard
+
+# FastAPI Backend
+fastapi
+uvicorn
+python-multipart
+pydantic
+

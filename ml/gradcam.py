@@ -1,4 +1,5 @@
 from pathlib import Path
+import uuid
 
 import cv2
 import numpy as np
@@ -7,53 +8,24 @@ import tensorflow as tf
 from tensorflow import keras
 
 
+from ml.predict import Predictor
+
 class GradCAM:
     """
     Grad-CAM for Brain Tumor Classification
-
-    Responsibilities
-    ----------------
-    • Load trained model
-    • Load MRI image
-    • Predict tumor class
-    • Generate Grad-CAM heatmap
-    • Overlay heatmap on MRI
-    • Save visualization
     """
 
-    ###########################################################
+    def __init__(self, predictor: Predictor):
 
-    def __init__(
+        self.predictor = predictor
 
-        self,
+        self.model = predictor.model
 
-        model_path,
+        self.class_names = predictor.class_names
 
-        image_size=(224, 224)
-
-    ):
-
-        self.model_path = Path(model_path)
-
-        self.image_size = image_size
-
-        self.model = None
-
-        self.class_names = [
-
-            "glioma",
-
-            "meningioma",
-
-            "notumor",
-
-            "pituitary"
-
-        ]
+        self.image_size = predictor.image_size
 
         self.create_directories()
-
-        self.load_model()
 
     ###########################################################
 
@@ -69,17 +41,7 @@ class GradCAM:
 
     ###########################################################
 
-    def load_model(self):
-
-        self.model = keras.models.load_model(
-
-            self.model_path
-
-        )
-
-        print("=" * 50)
-        print("Model Loaded Successfully")
-        print("=" * 50)
+    
 
     ###########################################################
 
@@ -221,17 +183,24 @@ class GradCAM:
     
     ###########################################################
 
+    def _get_backbone(self):
+        for layer in self.model.layers:
+            if isinstance(layer, keras.Model):
+                return layer
+        raise ValueError("No backbone model found inside classifier.")
+
+    ###########################################################
+
     def build_gradcam_model(self, last_conv_layer_name):
+        backbone = self._get_backbone()
+        conv_layer = backbone.get_layer(last_conv_layer_name)
 
         grad_model = keras.models.Model(
-
-            inputs=self.model.inputs,
-
+            inputs=backbone.input,
             outputs=[
-                self.model.get_layer(last_conv_layer_name).output,
-                self.model.output
+                conv_layer.output,
+                backbone.output
             ]
-
         )
 
         return grad_model
@@ -254,9 +223,12 @@ class GradCAM:
         )
 
         with tf.GradientTape() as tape:
+            conv_outputs, x = grad_model(image)
 
-            conv_outputs, predictions = grad_model(image)
+            for layer in self.model.layers[2:]:
+                x = layer(x, training=False)
 
+            predictions = x
             loss = predictions[:, class_index]
 
         # Compute gradients
@@ -295,4 +267,136 @@ class GradCAM:
 
         return heatmap
 
+    ###########################################################
 
+    def overlay_heatmap(
+        self,
+        original_image,
+        heatmap,
+        alpha=0.4,
+        colormap=cv2.COLORMAP_JET
+    ):
+        """
+        Resize heatmap to original image dimensions and blend with the MRI.
+        Returns the BGR overlay image.
+        """
+
+        h, w = original_image.shape[:2]
+
+        heatmap_uint8 = np.uint8(255 * heatmap)
+
+        heatmap_resized = cv2.resize(heatmap_uint8, (w, h))
+
+        heatmap_colored = cv2.applyColorMap(heatmap_resized, colormap)
+
+        overlay = cv2.addWeighted(
+            original_image, 1 - alpha,
+            heatmap_colored, alpha,
+            0
+        )
+
+        return overlay
+
+    ###########################################################
+
+    def save_visualization(
+        self,
+        original_image,
+        overlay,
+        heatmap,
+        class_name,
+        confidence,
+        output_path
+    ):
+        """
+        Save a three-panel image: original | heatmap | overlay.
+        """
+
+        h, w = original_image.shape[:2]
+
+        heatmap_uint8 = np.uint8(255 * heatmap)
+        heatmap_resized = cv2.resize(heatmap_uint8, (w, h))
+        heatmap_colored = cv2.applyColorMap(heatmap_resized, cv2.COLORMAP_JET)
+
+        panel = np.concatenate(
+            [original_image, heatmap_colored, overlay],
+            axis=1
+        )
+
+        label = f"{class_name} ({confidence:.2%})"
+        cv2.putText(
+            panel, label,
+            (10, 30),
+            cv2.FONT_HERSHEY_SIMPLEX,
+            0.9,
+            (255, 255, 255),
+            2,
+            cv2.LINE_AA
+        )
+
+        cv2.imwrite(str(output_path), panel)
+
+        print(f"Saved : {output_path}")
+
+    ###########################################################
+
+    def run(self, image_path, output_name=None):
+        """
+        Full pipeline: load → predict → heatmap → overlay → save.
+        """
+
+        image_path = Path(image_path)
+
+        if output_name is None:
+            output_name = f"gradcam_{image_path.stem}.jpg"
+
+        output_path = Path("artifacts/gradcam") / output_name
+
+        original, input_tensor = self.load_image(image_path)
+
+        class_index, class_name, confidence = self.predict(input_tensor)
+
+        last_conv = self.get_last_conv_layer()
+
+        heatmap = self.make_heatmap(input_tensor, class_index, last_conv)
+
+        overlay = self.overlay_heatmap(original, heatmap)
+
+        self.save_visualization(
+            original,
+            overlay,
+            heatmap,
+            class_name,
+            confidence,
+            output_path
+        )
+
+        return {
+            "class_name": class_name,
+            "confidence": confidence,
+            "heatmap": heatmap,
+            "overlay": overlay,
+            "output_path": str(output_path)
+        }
+    
+    def generate(self, image_path, class_index=None):
+        """
+        Generate Grad-CAM heatmap, save overlay image, and return filename.
+        """
+        image_path = Path(image_path)
+        original, input_tensor = self.load_image(image_path)
+
+        if class_index is None:
+            class_index, _, _ = self.predict(input_tensor)
+
+        last_conv = self.get_last_conv_layer()
+        heatmap = self.make_heatmap(input_tensor, class_index, last_conv)
+        overlay = self.overlay_heatmap(original, heatmap)
+
+        filename = f"gradcam_{uuid.uuid4().hex[:10]}.png"
+        output_path = Path("artifacts/gradcam") / filename
+        output_path.parent.mkdir(parents=True, exist_ok=True)
+
+        cv2.imwrite(str(output_path), overlay)
+
+        return filename

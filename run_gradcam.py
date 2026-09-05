@@ -1,39 +1,14 @@
 from ml.gradcam import GradCAM
 
 gradcam = GradCAM(
-
     model_path="artifacts/models/best_model.keras"
-
 )
 
-original, image = gradcam.load_image(
-
-    "data/processed/Testing/pituitary/Te-pi_4.jpg"          # replace with an MRI image
-
-)
-
-class_index, class_name, confidence = gradcam.predict(
-
-    image
-
-)
-
-last_conv = gradcam.get_last_conv_layer()
-
-heatmap = gradcam.make_heatmap(
-
-    image,
-
-    class_index,
-
-    last_conv
-
+result = gradcam.run(
+    image_path="data/raw/Testing/notumor/Te-no_25.jpg"
 )
 
 print()
-
-print("Heatmap Shape :", heatmap.shape)
-
-print("Minimum Value :", heatmap.min())
-
-print("Maximum Value :", heatmap.max())
+print("Prediction :", result["class_name"])
+print("Confidence :", f"{result['confidence']:.2%}")
+print("Saved to   :", result["output_path"])
