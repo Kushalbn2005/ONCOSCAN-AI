@@ -1,20 +1,25 @@
 import React, { useState } from 'react';
 import { Eye, Layers, Sliders, Maximize2, Download, Flame, Sparkles } from 'lucide-react';
 
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+
 export default function ScanStudio({
   rawImageSrc,
   gradcamUrl,
   isLoading,
-  baseUrl = 'http://localhost:8000'
 }) {
   const [opacity, setOpacity] = useState(65);
   const [viewMode, setViewMode] = useState('overlay'); // 'overlay', 'side-by-side', 'raw', 'gradcam'
 
-  const fullGradcamUrl = gradcamUrl ? (gradcamUrl.startsWith('http') ? gradcamUrl : `${baseUrl}${gradcamUrl}`) : null;
+  const fullGradcamUrl = gradcamUrl
+    ? (gradcamUrl.startsWith('http')
+      ? gradcamUrl
+      : `${API_BASE_URL}${gradcamUrl}`)
+    : null;
 
   return (
     <div className="glass-panel" style={{ padding: '24px', height: '100%', display: 'flex', flexDirection: 'column' }}>
-      
+
       {/* Studio Header */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', flexWrap: 'wrap', gap: '12px' }}>
         <div>
@@ -61,7 +66,7 @@ export default function ScanStudio({
       </div>
 
       {/* Main Image Viewer Box */}
-      <div 
+      <div
         className="medical-viewer"
         style={{
           flex: 1,
@@ -85,7 +90,7 @@ export default function ScanStudio({
 
         {rawImageSrc && (
           <div style={{ width: '100%', height: '100%', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            
+
             {/* OVERLAY MODE */}
             {viewMode === 'overlay' && (
               <div style={{ position: 'relative', maxWidth: '340px', width: '100%', aspectRatio: '1/1', borderRadius: '12px', overflow: 'hidden', border: '1px solid rgba(255, 255, 255, 0.15)' }}>
@@ -156,7 +161,7 @@ export default function ScanStudio({
       {rawImageSrc && (
         <div style={{ marginTop: '16px', background: 'rgba(0, 0, 0, 0.3)', padding: '14px', borderRadius: 'var(--radius-md)', border: '1px solid var(--border-subtle)' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '12px' }}>
-            
+
             {/* Opacity Slider */}
             <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: '200px' }}>
               <Sliders size={16} color="var(--primary)" />
