@@ -1,20 +1,24 @@
 import React, { useState } from 'react';
 import { Eye, Layers, Sliders, Maximize2, Download, Flame, Sparkles } from 'lucide-react';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL;
+const FALLBACK_API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'https://oncoscan-ai-tvcg.onrender.com'
+).replace(/\/$/, '');
 
 export default function ScanStudio({
   rawImageSrc,
   gradcamUrl,
   isLoading,
+  baseUrl = FALLBACK_API_BASE_URL,
 }) {
   const [opacity, setOpacity] = useState(65);
   const [viewMode, setViewMode] = useState('overlay'); // 'overlay', 'side-by-side', 'raw', 'gradcam'
 
+  const apiBase = (baseUrl || FALLBACK_API_BASE_URL).replace(/\/$/, '');
   const fullGradcamUrl = gradcamUrl
     ? (gradcamUrl.startsWith('http')
       ? gradcamUrl
-      : `${API_BASE_URL}${gradcamUrl}`)
+      : `${apiBase}${gradcamUrl}`)
     : null;
 
   return (

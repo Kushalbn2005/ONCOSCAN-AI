@@ -15,7 +15,7 @@ class GradCAM:
     Grad-CAM for Brain Tumor Classification
     """
 
-    def __init__(self, predictor: Predictor):
+    def __init__(self, predictor: Predictor, output_dir=None):
 
         self.predictor = predictor
 
@@ -25,13 +25,18 @@ class GradCAM:
 
         self.image_size = predictor.image_size
 
+        self.output_dir = Path(output_dir) if output_dir else Path("artifacts/gradcam")
+
+        self._grad_model = None
+        self._last_conv_name = None
+
         self.create_directories()
 
     ###########################################################
 
     def create_directories(self):
 
-        Path("artifacts/gradcam").mkdir(
+        self.output_dir.mkdir(
 
             parents=True,
 
@@ -204,6 +209,13 @@ class GradCAM:
         )
 
         return grad_model
+
+    def get_cached_grad_model(self):
+        """Build the Grad-CAM model once and reuse it across requests."""
+        if self._grad_model is None:
+            self._last_conv_name = self.get_last_conv_layer()
+            self._grad_model = self.build_gradcam_model(self._last_conv_name)
+        return self._grad_model
     
 
     ###########################################################
@@ -212,15 +224,13 @@ class GradCAM:
         self,
         image,
         class_index,
-        last_conv_layer_name
+        last_conv_layer_name=None
     ):
         """
         Generate Grad-CAM heatmap.
         """
 
-        grad_model = self.build_gradcam_model(
-            last_conv_layer_name
-        )
+        grad_model = self.get_cached_grad_model()
 
         with tf.GradientTape() as tape:
             conv_outputs, x = grad_model(image)
@@ -350,15 +360,13 @@ class GradCAM:
         if output_name is None:
             output_name = f"gradcam_{image_path.stem}.jpg"
 
-        output_path = Path("artifacts/gradcam") / output_name
+        output_path = self.output_dir / output_name
 
         original, input_tensor = self.load_image(image_path)
 
         class_index, class_name, confidence = self.predict(input_tensor)
 
-        last_conv = self.get_last_conv_layer()
-
-        heatmap = self.make_heatmap(input_tensor, class_index, last_conv)
+        heatmap = self.make_heatmap(input_tensor, class_index)
 
         overlay = self.overlay_heatmap(original, heatmap)
 
@@ -389,12 +397,11 @@ class GradCAM:
         if class_index is None:
             class_index, _, _ = self.predict(input_tensor)
 
-        last_conv = self.get_last_conv_layer()
-        heatmap = self.make_heatmap(input_tensor, class_index, last_conv)
+        heatmap = self.make_heatmap(input_tensor, class_index)
         overlay = self.overlay_heatmap(original, heatmap)
 
         filename = f"gradcam_{uuid.uuid4().hex[:10]}.png"
-        output_path = Path("artifacts/gradcam") / filename
+        output_path = self.output_dir / filename
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
         cv2.imwrite(str(output_path), overlay)

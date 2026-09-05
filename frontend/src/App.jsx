@@ -6,7 +6,9 @@ import DiagnosisPanel from './components/DiagnosisPanel';
 import ModelInfoModal from './components/ModelInfoModal';
 import { AlertCircle } from 'lucide-react';
 
-const API_BASE_URL = 'https://oncoscan-ai-tvcg.onrender.com';
+const API_BASE_URL = (
+  import.meta.env.VITE_API_BASE_URL || 'https://oncoscan-ai-tvcg.onrender.com'
+).replace(/\/$/, '');
 
 export default function App() {
   const [rawImageSrc, setRawImageSrc] = useState(null);
@@ -68,7 +70,7 @@ export default function App() {
       setIsConnected(true);
     } catch (err) {
       console.error('Prediction API Error:', err);
-      setErrorMsg(err.message || 'Failed to connect to OncoScan AI FastAPI backend at localhost:8000');
+      setErrorMsg(err.message || `Failed to connect to OncoScan AI backend at ${API_BASE_URL}`);
     } finally {
       setIsLoading(false);
     }

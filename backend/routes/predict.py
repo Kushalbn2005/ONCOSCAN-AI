@@ -1,16 +1,16 @@
 from fastapi import APIRouter, UploadFile, File, Depends, HTTPException
 import shutil
 import uuid
+import traceback
 from pathlib import Path
 
 from backend.dependencies import get_predictor, get_gradcam
 from backend.schemas import PredictionResponse
-from backend.config import UPLOAD_DIR
-import traceback
+from backend.config import UPLOAD_DIR, is_gradcam_enabled
 
 router = APIRouter(
     prefix="/predict",
-    tags=["Prediction"]
+    tags=["Prediction"],
 )
 
 
@@ -19,34 +19,40 @@ router = APIRouter(
 async def predict(
     file: UploadFile = File(...),
     predictor=Depends(get_predictor),
-    gradcam=Depends(get_gradcam)
+    gradcam=Depends(get_gradcam),
 ):
     try:
         UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
-        # Unique file name for uploaded image
-        file_ext = Path(file.filename).suffix or ".jpg"
-        unique_filename = f"{uuid.uuid4().hex[:8]}_{Path(file.filename).stem}{file_ext}"
+        file_ext = Path(file.filename or "scan.jpg").suffix or ".jpg"
+        unique_filename = f"{uuid.uuid4().hex[:8]}_{Path(file.filename or 'scan').stem}{file_ext}"
         image_path = UPLOAD_DIR / unique_filename
 
         with open(image_path, "wb") as buffer:
             shutil.copyfileobj(file.file, buffer)
 
+        # Core inference first — keep this path lean so Render stays alive
         result = predictor.predict_image(image_path)
 
-        gradcam_filename = gradcam.generate(
-            image_path=image_path,
-            class_index=result["class_index"]
-        )
-
-        gradcam_url = f"/static/gradcam/{gradcam_filename}"
+        gradcam_url = None
+        if is_gradcam_enabled():
+            try:
+                gradcam_filename = gradcam.generate(
+                    image_path=image_path,
+                    class_index=result["class_index"],
+                )
+                gradcam_url = f"/static/gradcam/{gradcam_filename}"
+            except Exception:
+                # Non-fatal: return class prediction even if heatmap fails
+                traceback.print_exc()
+                gradcam_url = None
 
         return PredictionResponse(
             prediction=result["prediction"],
             confidence=float(result["confidence"]),
             probabilities={k: float(v) for k, v in result["probabilities"].items()},
             gradcam_url=gradcam_url,
-            class_index=int(result["class_index"])
+            class_index=int(result["class_index"]),
         )
 
     except Exception as e:
