@@ -6,7 +6,7 @@ from pathlib import Path
 
 from backend.dependencies import get_predictor, get_gradcam
 from backend.schemas import PredictionResponse
-from backend.config import UPLOAD_DIR, is_gradcam_enabled
+from backend.config import UPLOAD_DIR, get_heatmap_mode
 
 router = APIRouter(
     prefix="/predict",
@@ -35,12 +35,20 @@ async def predict(
         result = predictor.predict_image(image_path)
 
         gradcam_url = None
-        if is_gradcam_enabled():
+        heatmap_mode = get_heatmap_mode()
+        if heatmap_mode != "off":
             try:
-                gradcam_filename = gradcam.generate(
-                    image_path=image_path,
-                    class_index=result["class_index"],
-                )
+                if heatmap_mode == "full":
+                    gradcam_filename = gradcam.generate(
+                        image_path=image_path,
+                        class_index=result["class_index"],
+                    )
+                else:
+                    # Lightweight activation map — safe for free-tier Render RAM
+                    gradcam_filename = gradcam.generate_light(
+                        image_path=image_path,
+                        class_index=result["class_index"],
+                    )
                 gradcam_url = f"/static/gradcam/{gradcam_filename}"
             except Exception:
                 # Non-fatal: return class prediction even if heatmap fails

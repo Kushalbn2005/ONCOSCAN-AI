@@ -25,3 +25,4 @@ class HealthResponse(BaseModel):
     status: str
     model_loaded: bool
     gradcam_enabled: bool = False
+    heatmap_mode: str = "off"

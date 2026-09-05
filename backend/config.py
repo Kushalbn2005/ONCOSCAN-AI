@@ -57,18 +57,29 @@ def get_cors_origins() -> list[str]:
     return origins
 
 
-def is_gradcam_enabled() -> bool:
+def get_heatmap_mode() -> str:
     """
-    Grad-CAM is memory-heavy and can OOM/kill free Render instances.
-    - Set ENABLE_GRADCAM=true/false to force.
-    - On Render, default OFF unless explicitly enabled.
-    - Locally, default ON.
+    Heatmap generation mode:
+      - full: classic Grad-CAM (memory heavy)
+      - light: last-conv activation map (safe for free Render)
+      - off: skip heatmaps
+
+    HEATMAP_MODE wins if set. ENABLE_GRADCAM=true/false maps to full/off.
+    On Render, default is light. Locally, default is full.
     """
+    mode = os.getenv("HEATMAP_MODE", "").strip().lower()
+    if mode in {"full", "light", "off"}:
+        return mode
+
     flag = os.getenv("ENABLE_GRADCAM")
     if flag is not None:
-        return flag.strip().lower() in {"1", "true", "yes", "on"}
+        return "full" if flag.strip().lower() in {"1", "true", "yes", "on"} else "off"
 
-    # Render injects RENDER=true (and related vars)
     if os.getenv("RENDER") or os.getenv("RENDER_SERVICE_ID"):
-        return False
-    return True
+        return "light"
+    return "full"
+
+
+def is_gradcam_enabled() -> bool:
+    """True when any heatmap generation is enabled (full or light)."""
+    return get_heatmap_mode() != "off"

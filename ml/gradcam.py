@@ -29,6 +29,7 @@ class GradCAM:
 
         self._grad_model = None
         self._last_conv_name = None
+        self._feature_model = None
 
         self.create_directories()
 
@@ -216,6 +217,22 @@ class GradCAM:
             self._last_conv_name = self.get_last_conv_layer()
             self._grad_model = self.build_gradcam_model(self._last_conv_name)
         return self._grad_model
+
+    def get_cached_feature_model(self):
+        """
+        Lightweight feature extractor: input -> last conv activations.
+        No GradientTape, much lower memory than full Grad-CAM.
+        """
+        if self._feature_model is None:
+            last_conv_name = self.get_last_conv_layer()
+            backbone = self._get_backbone()
+            conv_layer = backbone.get_layer(last_conv_name)
+            self._feature_model = keras.models.Model(
+                inputs=backbone.input,
+                outputs=conv_layer.output,
+            )
+            self._last_conv_name = last_conv_name
+        return self._feature_model
     
 
     ###########################################################
@@ -404,6 +421,35 @@ class GradCAM:
         output_path = self.output_dir / filename
         output_path.parent.mkdir(parents=True, exist_ok=True)
 
+        cv2.imwrite(str(output_path), overlay)
+
+        return filename
+
+    def generate_light(self, image_path, class_index=None):
+        """
+        Memory-light activation heatmap for constrained hosts (e.g. Render free).
+
+        Uses mean last-conv feature magnitude instead of GradientTape Grad-CAM.
+        """
+        image_path = Path(image_path)
+        original, input_tensor = self.load_image(image_path)
+
+        feature_model = self.get_cached_feature_model()
+        features = feature_model.predict(input_tensor, verbose=0)[0]
+
+        # Channel-wise mean activation map
+        heatmap = np.mean(features, axis=-1)
+        heatmap = np.maximum(heatmap, 0)
+
+        max_value = float(np.max(heatmap))
+        if max_value > 0:
+            heatmap = heatmap / max_value
+
+        overlay = self.overlay_heatmap(original, heatmap)
+
+        filename = f"heatmap_{uuid.uuid4().hex[:10]}.png"
+        output_path = self.output_dir / filename
+        output_path.parent.mkdir(parents=True, exist_ok=True)
         cv2.imwrite(str(output_path), overlay)
 
         return filename

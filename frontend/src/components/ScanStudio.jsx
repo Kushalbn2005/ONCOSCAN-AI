@@ -122,6 +122,21 @@ export default function ScanStudio({
                     }}
                   />
                 )}
+                {!fullGradcamUrl && !isLoading && (
+                  <div style={{
+                    position: 'absolute',
+                    left: 0,
+                    right: 0,
+                    bottom: 0,
+                    padding: '8px 10px',
+                    background: 'rgba(0,0,0,0.55)',
+                    color: 'var(--text-muted)',
+                    fontSize: '0.72rem',
+                    textAlign: 'center'
+                  }}>
+                    Heatmap unavailable for this prediction
+                  </div>
+                )}
               </div>
             )}
 
@@ -137,7 +152,9 @@ export default function ScanStudio({
                   {fullGradcamUrl ? (
                     <img src={fullGradcamUrl} alt="Grad-CAM" style={{ width: '100%', borderRadius: '8px', border: '1px solid var(--border-glow)' }} />
                   ) : (
-                    <div style={{ padding: '40px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>Generating heatmap...</div>
+                    <div style={{ padding: '40px', color: 'var(--text-dim)', fontSize: '0.8rem' }}>
+                      {isLoading ? 'Generating heatmap...' : 'Heatmap not returned by backend'}
+                    </div>
                   )}
                 </div>
               </div>
@@ -153,7 +170,9 @@ export default function ScanStudio({
               fullGradcamUrl ? (
                 <img src={fullGradcamUrl} alt="Grad-CAM" style={{ maxWidth: '340px', width: '100%', borderRadius: '12px', border: '1px solid var(--border-glow)' }} />
               ) : (
-                <div style={{ color: 'var(--text-muted)' }}>Generating Grad-CAM visualization...</div>
+                <div style={{ color: 'var(--text-muted)' }}>
+                  {isLoading ? 'Generating Grad-CAM visualization...' : 'Heatmap not returned by backend'}
+                </div>
               )
             )}
 
