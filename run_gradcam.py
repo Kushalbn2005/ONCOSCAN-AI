@@ -1,8 +1,8 @@
+from ml.predict import Predictor
 from ml.gradcam import GradCAM
 
-gradcam = GradCAM(
-    model_path="artifacts/models/best_model.keras"
-)
+predictor = Predictor("artifacts/models/best_model.keras")
+gradcam = GradCAM(predictor)
 
 result = gradcam.run(
     image_path="data/raw/Testing/notumor/Te-no_25.jpg"
