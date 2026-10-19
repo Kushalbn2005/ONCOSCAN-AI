@@ -16,7 +16,7 @@ Latest evaluation on the held-out test set (`artifacts/evaluation/`):
 
 | Metric | Value |
 |--------|-------|
-| Test accuracy | **88.5%** |
+| Test accuracy | **94.27%** |
 | Test loss | 0.507 |
 | Test images | 1,600 (400 per class) |
 
